@@ -24,11 +24,15 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+
 import javax.imageio.ImageIO;
 import javax.swing.DefaultListModel;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JOptionPane;
@@ -45,12 +49,17 @@ import javax.swing.event.TreeSelectionListener;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
+
+import jxl.Workbook;
+import jxl.write.Label;
+import jxl.write.WritableCellFormat;
+import jxl.write.WritableFont;
+import jxl.write.WritableSheet;
+import jxl.write.WritableWorkbook;
+import jxl.write.WriteException;
+import jxl.write.biff.RowsExceededException;
 import layout.CustomTreeCellRenderer;
 import layout.CustomTreeNode;
-import pack.EnhancedGroup;
-import pack.FilterCreationPanel;
-import pack.HitNameInfo;
-import pack.Main;
 import pack.filters.Filter;
 
 public class MyPanel extends JPanel implements Runnable {
@@ -63,6 +72,10 @@ public class MyPanel extends JPanel implements Runnable {
     HashMap<String, String> param_names; 
     HashMap<String, String> compose_names;
     HashMap<String, String> enhanced_names;
+    
+    HashMap<String, Integer> paramPriority;
+    
+    ArrayList<HitObject> allHits;
     
     //Ícones
     ImageIcon icon_app;
@@ -84,6 +97,7 @@ public class MyPanel extends JPanel implements Runnable {
     volatile float currentConsoleHeight = 30.0f;
     		
     JButton button_clear;
+    JButton export_btn;
     JSplitPane splitPanel;
     JPanel panel_center;
     JScrollPane playload_area_scroll;
@@ -118,6 +132,7 @@ public class MyPanel extends JPanel implements Runnable {
     boolean requestInterruption = false;
 
     public MyPanel() {
+    	allHits = new ArrayList<>();
         new Timer(10, new ActionListener(){
 
             @Override
@@ -308,6 +323,17 @@ public class MyPanel extends JPanel implements Runnable {
             }
         });
         upper_panel.add((Component)this.button_clear, "Center");
+        export_btn = new JButton("Export");
+        export_btn.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				try {
+					export();
+				} catch (WriteException | IOException e1) {
+					e1.printStackTrace();
+				}
+			}
+        });
+        upper_panel.add(export_btn, "East");
         ImageIcon refresh_icon = null;
         try {
             refresh_icon = new ImageIcon(MyPanel.getScaledImage(ImageIO.read(this.getClass().getResourceAsStream("/refresh-button.png")), 16, 16));
@@ -387,9 +413,6 @@ public class MyPanel extends JPanel implements Runnable {
 
     public String getName(String code, boolean debug) {
         if (this.param_names.get(code) == null) {
-            if (debug) {
-                System.out.println("compose");
-            }
             if (!code.split("\\d+")[0].equals(code)) {
                 String result = "(" + code + ") ";
                 String[] ltr = code.split("\\d+");
@@ -407,6 +430,16 @@ public class MyPanel extends JPanel implements Runnable {
     }
 
     private void loadParamNames() {
+    	paramPriority  = new HashMap<>();
+    	paramPriority.put("t", 0);
+    	paramPriority.put("dl", 1);
+    	paramPriority.put("dp", 2);
+    	paramPriority.put("dh", 3);
+    	paramPriority.put("cd", 4);
+    	paramPriority.put("ec", 5);
+    	paramPriority.put("ea", 6);
+    	paramPriority.put("el", 7);
+    	    	
         this.param_names = new HashMap<String, String>();
         this.param_names.put("tid", "Tracking ID");
         this.param_names.put("aip", "Anonymous IP");
@@ -558,6 +591,81 @@ public class MyPanel extends JPanel implements Runnable {
     	
     }
     
+    //metodo que salva em xlsx
+    public void export() throws IOException, RowsExceededException, WriteException {
+    	
+    	File file;
+    	JFileChooser chooser = new JFileChooser();
+    	
+    	if (chooser.showSaveDialog(null) == JFileChooser.APPROVE_OPTION) {
+    		file = new File(chooser.getSelectedFile().getAbsolutePath() + ".xlsx");
+    		
+    		WritableWorkbook workbook = Workbook.createWorkbook(file);
+    		WritableSheet sheet = workbook.createSheet("Hits", 0);
+    		
+    		//Pega todos os parametros e mapeia
+    		ArrayList<String> allParams = new ArrayList<>();
+    		for(int i = 0; i < allHits.size(); i++) {
+    			HitObject hit = allHits.get(i);
+    			for(String key : hit.getParameters().keySet()) {
+    				if(!allParams.contains(key)) {
+    					allParams.add(key);
+    				}
+    			}
+    			
+    		}
+    		
+    		Collections.sort(allParams, new Comparator<String>() {
+				public int compare(String h1, String h2) {
+					if(paramPriority.containsKey(h1) && paramPriority.containsKey(h2)) {
+						return paramPriority.get(h1) - paramPriority.get(h2);
+					}
+					else if(paramPriority.containsKey(h1)) {
+						return -1;
+					}
+					else if(paramPriority.containsKey(h2)) {
+						return 1;
+					}
+					else {
+						return h2.compareTo(h1);
+					}
+				}
+    		});
+    		
+    		//Agora cria o header do excel
+    		WritableFont arial10font = new WritableFont(WritableFont.ARIAL, 14, WritableFont.BOLD); 
+    		WritableCellFormat arial10format = new WritableCellFormat (arial10font); 
+    		
+    		for(int i = 0; i < allParams.size(); i ++) {
+    			Label label = new Label(i, 0, getName(allParams.get(i), false), arial10format);
+				sheet.addCell(label);
+    		}
+    		//E coloca todos os hits
+    		for(int i = 0; i < allHits.size(); i++) {
+    			HitObject hit = allHits.get(i);
+    			
+    			for(int k = 0; k < allParams.size(); k ++) {
+    				String val = hit.getParameter(allParams.get(k));
+    				if(val != null) {
+	        			Label label = new Label(k, i+1, val);
+	    				sheet.addCell(label);
+    				}
+        		}
+    			
+    		}
+    		
+    		workbook.write();
+    		workbook.close();
+    		Label label = new Label(0, 0, "Cerula");
+    		sheet.addCell(label);
+    		
+    		JOptionPane.showMessageDialog(null, "Saved!");
+    	}
+
+    	
+    	
+    	
+    }
 
     //A thread que escuta os logs
     public void run() {
@@ -610,6 +718,8 @@ public class MyPanel extends JPanel implements Runnable {
                 
                 //Separa todos os parametros em strings no formato chave=valor
                 String[] params = hit_s.replaceAll("\\s", "").split(",");
+                
+                allHits.add(new HitObject(params));
                 
                 if(title.equals("event")) {
                 	//Se for evento já coloca o título como category > action > label (copiei do roger watcher kkk)

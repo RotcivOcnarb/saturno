@@ -118,14 +118,11 @@ public class Main {
     private static void showDevices() {
         try {
                     	
-            System.out.println("starting server");
-            Runtime.getRuntime().exec(new String[] {"adb start-server"}, new String[] {}, new File("C://"));
-                        
             ArrayList<String> devices = Main.getDevicesConnected();
             for(String d : devices)
             	System.out.println("\t" + d);
             if (devices.size() == 0) {
-                JOptionPane.showMessageDialog(null, "Nenhum dispositivo encontrado, conecte seu dispositivo Android antes de executar o aplicativo");
+                //JOptionPane.showMessageDialog(null, "Nenhum dispositivo encontrado, conecte seu dispositivo Android antes de executar o aplicativo");
                 //Runtime.getRuntime().exec("adb kill-server").waitFor();
                 //System.exit(1);
             } else {
