@@ -34,6 +34,7 @@ import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
@@ -56,25 +57,34 @@ public class MyPanel extends JPanel implements Runnable {
 	private static final long serialVersionUID = 8112169075851362512L;
 	
 	DefaultMutableTreeNode root;
-    Thread hit_listener_thread;
-    HashMap<String, String> param_names;
+    Thread hit_listener_thread; //A thread que fica escutando os logs
+    
+    //Mapas de id de parametro pra o significado deles
+    HashMap<String, String> param_names; 
     HashMap<String, String> compose_names;
     HashMap<String, String> enhanced_names;
+    
+    //Ícones
     ImageIcon icon_app;
     ImageIcon icon_hit;
     public static ImageIcon icon_parameter;
     public static ImageIcon icon_value;
     ImageIcon icon_broken;
-    ArrayList<Process> allrunning;
+    
+    ArrayList<Process> allrunning;//Lista de processos rodando pra quando o programa fechar, matar todos eles
     boolean isRefreshing = false;
-    Thread updateThread;
+    Thread updateThread; //Thread que atualiza a interface pra fazer as animaçõeszinhas maneiras
+    
+    //Coisas da animação da interface
     volatile Dimension panelCurrent;
     volatile float targetWidth = 240.0f;
     volatile float currentWidth = 240.0f;
     volatile Dimension consoleCurrent;
     volatile float targetConsoleHeight = 30.0f;
     volatile float currentConsoleHeight = 30.0f;
+    		
     JButton button_clear;
+    JSplitPane splitPanel;
     JPanel panel_center;
     JScrollPane playload_area_scroll;
     JTextArea playload_area;
@@ -126,28 +136,19 @@ public class MyPanel extends JPanel implements Runnable {
                 }
             }
         }).start();
+        splitPanel = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+        
         this.panelCurrent = new Dimension(200, 1000);
         this.consoleCurrent = new Dimension(200, 200);
         this.addComponentListener(new ComponentListener(){
-
-            @Override
-            public void componentShown(ComponentEvent e) {
-            }
-
-            @Override
+            public void componentShown(ComponentEvent e) {}
             public void componentResized(ComponentEvent e) {
                 MyPanel.this.list_scroll.setPreferredSize(new Dimension(200, (int)MyPanel.this.filter_panel.getSize().getHeight() - 150));
                 MyPanel.this.hit_list_scroll.setPreferredSize(new Dimension(200, (int)MyPanel.this.hit_filter_panel.getSize().getHeight() - 120));
                 MyPanel.this.repaint();
             }
-
-            @Override
-            public void componentMoved(ComponentEvent e) {
-            }
-
-            @Override
-            public void componentHidden(ComponentEvent e) {
-            }
+            public void componentMoved(ComponentEvent e) {}
+            public void componentHidden(ComponentEvent e) {}
         });
         this.allrunning = new ArrayList<Process>();
         this.filter_model = new DefaultListModel<String>();
@@ -172,8 +173,6 @@ public class MyPanel extends JPanel implements Runnable {
         this.filter_panel.add(this.filter_txt);
         this.filter_add = new JButton("Add Filter");
         this.filter_add.addActionListener(new ActionListener(){
-
-            @Override
             public void actionPerformed(ActionEvent e) {
                 if (!MyPanel.this.filter_txt.getText().equals("")) {
                     MyPanel.this.filter_model.addElement(MyPanel.this.filter_txt.getText());
@@ -185,8 +184,6 @@ public class MyPanel extends JPanel implements Runnable {
         this.filter_panel.add(this.filter_add);
         this.filter_remove = new JButton("Remove Filter");
         this.filter_remove.addActionListener(new ActionListener(){
-
-            @Override
             public void actionPerformed(ActionEvent e) {
                 if (MyPanel.this.filter_list.getSelectedIndex() != -1) {
                     MyPanel.this.filter_model.remove(MyPanel.this.filter_list.getSelectedIndex());
@@ -208,8 +205,6 @@ public class MyPanel extends JPanel implements Runnable {
         this.hit_filter_panel.add(this.hit_filter_title);
         this.hit_filter_add = new JButton("Add Filter");
         this.hit_filter_add.addActionListener(new ActionListener(){
-
-            @Override
             public void actionPerformed(ActionEvent e) {
                 FilterCreationPanel fcp = new FilterCreationPanel();
                 int resp = JOptionPane.showConfirmDialog(null, fcp, "Filter add", 2);
@@ -222,8 +217,6 @@ public class MyPanel extends JPanel implements Runnable {
         this.hit_filter_panel.add(this.hit_filter_add);
         this.hit_filter_remove = new JButton("Remove Filter");
         this.hit_filter_remove.addActionListener(new ActionListener(){
-
-            @Override
             public void actionPerformed(ActionEvent e) {
                 if (MyPanel.this.hit_filter_list.getSelectedIndex() != -1) {
                     MyPanel.this.hit_filter_model.remove(MyPanel.this.hit_filter_list.getSelectedIndex());
@@ -241,8 +234,6 @@ public class MyPanel extends JPanel implements Runnable {
         this.retract_right = new JButton(">");
         this.retract_right.setPreferredSize(new Dimension(40, 20));
         this.retract_right.addActionListener(new ActionListener(){
-
-            @Override
             public void actionPerformed(ActionEvent arg0) {
                 if (MyPanel.this.retract_right.getText().equals(">")) {
                     MyPanel.this.retract_right.setText("<");
@@ -265,27 +256,25 @@ public class MyPanel extends JPanel implements Runnable {
         catch (Exception e) {
             Main.showException(e);
         }
-        this.root = new DefaultMutableTreeNode(new CustomTreeNode("Aplica\u00e7\u00e3o", this.icon_app, ""));
+        this.root = new DefaultMutableTreeNode(new CustomTreeNode("Aplicação", this.icon_app, ""));
         this.hits_model = new DefaultTreeModel(this.root);
         this.hits_tree = new JTree(this.hits_model);
         this.hits_tree.addTreeSelectionListener(new TreeSelectionListener(){
-
-            @Override
             public void valueChanged(TreeSelectionEvent e) {
                 int i;
                 DefaultMutableTreeNode node = (DefaultMutableTreeNode)MyPanel.this.hits_tree.getLastSelectedPathComponent();
-                if (node == null) {
+                if (node == null) 
                     return;
-                }
+                
                 try {
                     MyPanel.this.playload_area.setText(((CustomTreeNode)node.getUserObject()).getPayload());
                 }
                 catch (Exception e1) {
                     e1.printStackTrace();
                 }
-                for (i = MyPanel.this.params_table_model.getRowCount() - 1; i >= 0; --i) {
+                for (i = MyPanel.this.params_table_model.getRowCount() - 1; i >= 0; --i) 
                     MyPanel.this.params_table_model.removeRow(i);
-                }
+                
                 if (node != null && node.getChildCount() > 0) {
                     for (i = 0; i < node.getChildCount(); ++i) {
                         DefaultMutableTreeNode ch = (DefaultMutableTreeNode)node.getChildAt(i);
@@ -306,14 +295,13 @@ public class MyPanel extends JPanel implements Runnable {
             Main.showException(e);
         }
         this.hits_tree_scroll = new JScrollPane(this.hits_tree);
-        this.hits_tree_scroll.setPreferredSize(new Dimension(200, 1000));
-        this.add((Component)this.hits_tree_scroll, "West");
+        this.splitPanel.add((Component)this.hits_tree_scroll);
+
+        this.hits_tree_scroll.setPreferredSize(new Dimension(400, 1000));
         JPanel upper_panel = new JPanel();
         upper_panel.setLayout(new BorderLayout());
         this.button_clear = new JButton("Clear");
         this.button_clear.addActionListener(new ActionListener(){
-
-            @Override
             public void actionPerformed(ActionEvent arg0) {
                 MyPanel.this.root.removeAllChildren();
                 MyPanel.this.hits_model.setRoot(MyPanel.this.root);
@@ -331,8 +319,6 @@ public class MyPanel extends JPanel implements Runnable {
         refresh.setIcon(refresh_icon);
         refresh.setPreferredSize(new Dimension(40, 30));
         refresh.addActionListener(new ActionListener(){
-
-            @Override
             public void actionPerformed(ActionEvent arg0) {
                 if (!MyPanel.this.isRefreshing) {
                     MyPanel.this.resetADB();
@@ -349,13 +335,13 @@ public class MyPanel extends JPanel implements Runnable {
         this.playload_area.setEditable(false);
         JScrollPane payload_scroll = new JScrollPane(this.playload_area);
         payload_scroll.setPreferredSize(new Dimension(100, 50));
-        this.panel_center.add((Component)payload_scroll, "North");
+        this.panel_center.add(payload_scroll, "North");
         this.params_table_model = new DefaultTableModel();
         this.params_table_model.addColumn("Name");
         this.params_table_model.addColumn("Value");
         this.params_table = new JTable(this.params_table_model);
         this.playload_area_scroll = new JScrollPane(this.params_table);
-        this.panel_center.add((Component)this.playload_area_scroll, "Center");
+        this.panel_center.add(this.playload_area_scroll, BorderLayout.CENTER);
         this.center_bottom_panel = new JPanel();
         this.center_bottom_panel.setLayout(new BorderLayout());
         this.console_area = new JTextArea();
@@ -367,8 +353,6 @@ public class MyPanel extends JPanel implements Runnable {
         final JButton retract_console = new JButton("^");
         retract_console.setPreferredSize(new Dimension(40, 30));
         retract_console.addActionListener(new ActionListener(){
-
-            @Override
             public void actionPerformed(ActionEvent arg0) {
                 if (retract_console.getText().equals("v")) {
                     retract_console.setText("^");
@@ -379,9 +363,10 @@ public class MyPanel extends JPanel implements Runnable {
                 }
             }
         });
-        this.center_bottom_panel.add((Component)retract_console, "North");
-        this.panel_center.add((Component)this.center_bottom_panel, "South");
-        this.add((Component)this.panel_center, "Center");
+        this.center_bottom_panel.add(retract_console, "North");
+        this.panel_center.add(this.center_bottom_panel, "South");
+        splitPanel.add(this.panel_center);
+        this.add(splitPanel, "Center");
     }
 
     public String[] removeEmpties(String[] arr) {
@@ -574,36 +559,46 @@ public class MyPanel extends JPanel implements Runnable {
     }
     
 
-    @Override
+    //A thread que escuta os logs
     public void run() {
         try {
-            String s2;
-            Runtime.getRuntime().exec(String.valueOf(Main.ADB_PATH) + "/adb start-server").waitFor();
-            Process p = Runtime.getRuntime().exec(String.valueOf(Main.ADB_PATH) + "/adb shell setprop log.tag.GAv4 DEBUG");
+            
+        	//Inicia o servidor
+            Runtime.getRuntime().exec("adb start-server").waitFor();
+            //Configura o listener do logcat
+            Process p = Runtime.getRuntime().exec("adb shell setprop log.tag.GAv4 DEBUG");
             this.allrunning.add(p);
             p.waitFor();
-            p = Runtime.getRuntime().exec(String.valueOf(Main.ADB_PATH) + "/adb logcat -c");
+            //Limpa os disparos de antes
+            p = Runtime.getRuntime().exec("adb logcat -c");
             this.allrunning.add(p);
             p.waitFor();
-            System.out.println("Escutando disparos dos dispositivos:");
+            //Printa os dispositivos (serve pra nada, só estética)
             ArrayList<String> devices = Main.getDevicesConnected();
-            for (String s3 : devices) {
-                System.out.println("\t" + s3);
+            for (String s2 : devices) {
+                System.out.println("\t" + s2);
             }
             this.isRefreshing = false;
-            this.log = Runtime.getRuntime().exec(String.valueOf(Main.ADB_PATH) + "/adb logcat -s GAv4");
+            //Começa a escutar os disparos
+            this.log = Runtime.getRuntime().exec("adb logcat -s GAv4");
             this.allrunning.add(this.log);
             this.br = new BufferedReader(new InputStreamReader(this.log.getInputStream()));
+            String s2;
+            //Esse while roda escutando os disparos
             while ((s2 = this.br.readLine()) != null && !this.requestInterruption) {
+            	///A string é um payloadzao gigante, com um "header" que eu to arrancando fora, separado  por ":"
                 String[] arr = s2.split(":");
-                if (arr.length < 5) continue;
+                if (arr.length < 5) continue; //Checa se tem o numero correto de coisas
                 String title = "ERR";
+                //Monta a string de volta pegando só o payload (do 4º pedaço pra frente)
                 String hit_s = "";
                 for (int i = 4; i < arr.length; ++i) {
-                    hit_s = String.valueOf(hit_s) + arr[i] + ":";
+                    hit_s += arr[i] + ":";
                 }
-                hit_s = hit_s.substring(0, hit_s.length() - 1);
+                hit_s = hit_s.substring(0, hit_s.length() - 1); //Tira o ultimo caracter ??
+                
                 try {
+                	//Procura o titulo baseado no parametro "t" do payload
                     title = hit_s.replaceAll("\\s", "").contains(",t=") ? hit_s.replaceAll("\\s", "").split(",t=")[1].split(",")[0] : "undetected";
                 }
                 catch (Exception e) {
@@ -613,9 +608,11 @@ public class MyPanel extends JPanel implements Runnable {
                 }
                 if (!hit_s.contains("=")) continue;
                 
+                //Separa todos os parametros em strings no formato chave=valor
                 String[] params = hit_s.replaceAll("\\s", "").split(",");
                 
                 if(title.equals("event")) {
+                	//Se for evento já coloca o título como category > action > label (copiei do roger watcher kkk)
                 	String cat = findValue(params, "ec");
                 	String act = findValue(params, "ea");
                 	String lbl = findValue(params, "el");
@@ -623,25 +620,32 @@ public class MyPanel extends JPanel implements Runnable {
                 }
                 
                 if(title.equals("pageview")) {
+                	//Caso seja pageview, já mostra a url
                 	title = "PV > " + findValue(params, "dl");
                 }
                 
                 if(title.equals("screenview")) {
+                	//Screen view a mesma coisa pro nome da tela
                 	title = "SV > " + findValue(params, "cd");
                 }
                 
+                //Começa a criar o nodo que vai aparecer na árvore da Esquerda
                 DefaultMutableTreeNode hit = new DefaultMutableTreeNode(new CustomTreeNode(title, this.icon_hit, s2));
-                String[] pl = hit_s.replaceAll("\\s", "").split(",");
                 boolean out = true;
+                //Aplica todos os filtros usando a funçãozinha basica "evaluate()"
                 for (int i = 0; i < this.hit_filter_model.size(); ++i) {
                     Filter f = this.hit_filter_model.get(i);
-                    if (!f.evaluate(pl)) continue;
+                    if (!f.evaluate(params)) continue;
                     out = false;
                     break;
                 }
                 if (!out) continue;
+                //Cria o agrupamento de Enhanced Ecommerce
                 EnhancedGroup group = new EnhancedGroup();
-                for (String k : pl) {
+                for (String k : params) {
+                	
+                	//Aqui começa o monstro, tente entender por sua própria conta e risco
+                	//não lembro como eu fiz isso, não me pergunta pf
                     DefaultMutableTreeNode param;
                     if (this.filter_model.contains(k.split("=")[0]) || !k.contains("=")) continue;
                     HitNameInfo hitName = new HitNameInfo(k);
@@ -652,9 +656,8 @@ public class MyPanel extends JPanel implements Runnable {
                         }
                         EnhancedGroup iteration_group = group.getChild(hitName.getTypeOfEnhance());
                         for (int id : hitName.getIds()) {
-                            if (!iteration_group.containsChild(String.valueOf(id))) {
+                            if (!iteration_group.containsChild(String.valueOf(id))) 
                                 iteration_group.put(String.valueOf(id), new EnhancedGroup());
-                            }
                             iteration_group = iteration_group.getChild(String.valueOf(id));
                         }
                         iteration_group.put(hitName.getFullName(), hitName);
@@ -670,10 +673,10 @@ public class MyPanel extends JPanel implements Runnable {
                     param = new DefaultMutableTreeNode(new CustomTreeNode(hitName.getFullName(), icon_parameter, k));
                     param.add(new DefaultMutableTreeNode(new CustomTreeNode(k.split("=")[1], icon_value, k)));
                     hit.add(param);
+                    //Aqui termina o monstro
                 }
-                if (!group.isEmpty()) {
+                if (!group.isEmpty()) 
                     hit.add(group.getNode("enhanced"));
-                }                
                 this.root.add(hit);
                 this.hits_model.setRoot(this.root);
             }
@@ -700,7 +703,7 @@ public class MyPanel extends JPanel implements Runnable {
     public void end() {
         this.requestInterruption = true;
         try {
-            Runtime.getRuntime().exec(String.valueOf(Main.ADB_PATH) + "/adb kill-server").waitFor();
+            Runtime.getRuntime().exec("adb kill-server").waitFor();
         }
         catch (InterruptedException e1) {
             Main.showException(e1);

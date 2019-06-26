@@ -26,17 +26,16 @@ import javax.swing.UIManager;
 import com.jtattoo.plaf.hifi.HiFiLookAndFeel;
 
 public class Main {
-    static String ADB_PATH;
+    //static String ADB_PATH;
 
     public static void showException(Exception e) {
         e.printStackTrace();
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(new Runnable(){
-
-            @Override
-            public void run() {
+        SwingUtilities.invokeLater(new Runnable(){public void run() {
+        	
+        	
                 final JFrame frame = new JFrame("Saturno");
                 new Thread(new Runnable(){
 
@@ -100,7 +99,7 @@ public class Main {
     public static ArrayList<String> getDevicesConnected() throws InterruptedException, IOException {
         String s;
         ArrayList<String> retorno = new ArrayList<String>();
-        Process devices = Runtime.getRuntime().exec(String.valueOf(ADB_PATH) + "/adb devices -l");
+        Process devices = Runtime.getRuntime().exec("adb devices -l");
         BufferedReader dr = new BufferedReader(new InputStreamReader(devices.getInputStream()));
         boolean header = true;
         while ((s = dr.readLine()) != null) {
@@ -118,40 +117,17 @@ public class Main {
 
     private static void showDevices() {
         try {
-            File pathfile = new File("adbpath.conf");
-            while (!pathfile.exists()) {
-                JFileChooser jfc = new JFileChooser();
-                jfc.setFileSelectionMode(1);
-                jfc.setDialogTitle("Selecione a pasta do ADB");
-                jfc.setCurrentDirectory(new File(System.getenv("APPDATA")));
-                if (jfc.showOpenDialog(null) == 0) {
-                    try {
-                        Runtime.getRuntime().exec(String.valueOf(jfc.getSelectedFile().getAbsolutePath()) + "/adb --version").waitFor();
-                        BufferedWriter pathwriter = new BufferedWriter(new FileWriter(new File("adbpath.conf")));
-                        pathwriter.write(jfc.getSelectedFile().getAbsolutePath());
-                        pathwriter.close();
-                    }
-                    catch (IOException e) {
-                        JOptionPane.showMessageDialog(null, "Não foi encontrado o ADB na pasta informada");
-                    }
-                    continue;
-                }
-                System.exit(0);
-                break;
-            }
-            BufferedReader pathreader = new BufferedReader(new FileReader(pathfile));
-            ADB_PATH = pathreader.readLine();
-            pathreader.close();
-            System.out.println("Inicializando ADB");
-            Runtime.getRuntime().exec(String.valueOf(ADB_PATH) + "/adb start-server").waitFor();
+                    	
+            System.out.println("starting server");
+            Runtime.getRuntime().exec(new String[] {"adb start-server"}, new String[] {}, new File("C://"));
+                        
             ArrayList<String> devices = Main.getDevicesConnected();
-            System.out.println(devices.size() + " Dispositivos");
             for(String d : devices)
             	System.out.println("\t" + d);
             if (devices.size() == 0) {
                 JOptionPane.showMessageDialog(null, "Nenhum dispositivo encontrado, conecte seu dispositivo Android antes de executar o aplicativo");
-                Runtime.getRuntime().exec(String.valueOf(ADB_PATH) + "/adb kill-server").waitFor();
-                System.exit(1);
+                //Runtime.getRuntime().exec("adb kill-server").waitFor();
+                //System.exit(1);
             } else {
                 String dispo = "";
                 for (String s : devices) {
